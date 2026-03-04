@@ -5,8 +5,12 @@
 SKILL_NAME=$2
 COMMAND=$1
 
-GLOBAL_SKILLS_DIR="$HOME/.gemini/antigravity/skills"
+GLOBAL_SKILLS_DIR="${PAI_GLOBAL_SKILLS_DIR:-$HOME/.gemini/antigravity/skills}"
 LOCAL_SKILLS_DIR=".agent/skills"
+ALT_GLOBAL_SKILLS_DIRS=(
+    "$HOME/.codex/skills"
+    "$HOME/.config/pai/skills"
+)
 
 if [ -z "$SKILL_NAME" ]; then
     echo "Usage: $0 run <skill-name>"
@@ -21,8 +25,20 @@ elif [ -d "$GLOBAL_SKILLS_DIR/$SKILL_NAME" ]; then
     SKILL_PATH="$GLOBAL_SKILLS_DIR/$SKILL_NAME"
     echo "Using global skill: $SKILL_NAME"
 else
-    echo "Error: Skill '$SKILL_NAME' not found."
-    exit 1
+    for d in "${ALT_GLOBAL_SKILLS_DIRS[@]}"; do
+        if [ -d "$d/$SKILL_NAME" ]; then
+            SKILL_PATH="$d/$SKILL_NAME"
+            echo "Using alternate global skill: $SKILL_NAME"
+            break
+        fi
+    done
+    if [ -z "${SKILL_PATH:-}" ]; then
+        echo "Error: Skill '$SKILL_NAME' not found."
+        echo "Checked local: $LOCAL_SKILLS_DIR"
+        echo "Checked global: $GLOBAL_SKILLS_DIR"
+        echo "Checked alternates: ${ALT_GLOBAL_SKILLS_DIRS[*]}"
+        exit 1
+    fi
 fi
 
 # 2. Resolve Entry Point

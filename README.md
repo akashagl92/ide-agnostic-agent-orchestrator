@@ -100,6 +100,12 @@ scripts/pai_telemetry_report.sh
 scripts/pai_quality_gate_eval.sh
 ```
 
+If target project already has `.pai/config` or `scripts/pai_*` wrappers and you want to replace them:
+
+```bash
+bash scripts/init-project.sh --project /path/to/your-project --force-overwrite
+```
+
 ## Configuration
 Primary config lives in target project:
 - `.pai/config/runtime.env`
@@ -117,6 +123,11 @@ Adapters must comply with [adapters/CONTRACT.md](adapters/CONTRACT.md).
 Core policy decisions must remain authoritative; adapters may only add native productivity features.
 
 ## Validation
+In the standalone repo:
+
+```bash
+bash scripts/validate.sh
+```
 
 In integrated project repos (where wrappers are installed), run:
 
@@ -124,6 +135,11 @@ In integrated project repos (where wrappers are installed), run:
 npm run test:portable
 bash scripts/pai_pilot_preflight.sh
 ```
+
+## Skills Compatibility
+- Default global skills path: `~/.gemini/antigravity/skills`
+- You can override via: `PAI_GLOBAL_SKILLS_DIR=/custom/skills/path`
+- Alternate fallback paths are checked for portability (`~/.codex/skills`, `~/.config/pai/skills`)
 
 ## Deploy as Public Repo
 

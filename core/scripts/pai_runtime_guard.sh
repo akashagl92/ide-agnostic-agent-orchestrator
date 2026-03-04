@@ -127,7 +127,7 @@ case "$cmd" in
     SUBAGENT_TIMEOUT_SEC="180"
     SUBAGENT_PARENT_ONLY_WRITES="1"
     SUBAGENT_NATIVE_WRITES="0"
-    CAPABILITY_SPAWN_SUBAGENT="0"
+    CAPABILITY_SPAWN_SUBAGENT="1"
     write_state "$reason"
     echo "Reset profile to SHADOW and locked"
     ;;

@@ -5,15 +5,18 @@ usage() {
   cat <<'USAGE'
 Usage:
   scripts/init-project.sh --project <absolute_path_to_project>
+  scripts/init-project.sh --project <absolute_path_to_project> --force-overwrite
 
 Installs portable-pai-core config + wrappers into target project.
 USAGE
 }
 
 PROJECT=""
+FORCE_OVERWRITE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project) PROJECT="${2:-}"; shift 2 ;;
+    --force-overwrite) FORCE_OVERWRITE=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 1 ;;
   esac
@@ -26,8 +29,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 TARGET="$(cd "$PROJECT" && pwd -P)"
 
 mkdir -p "$TARGET/.pai/config" "$TARGET/scripts"
-cp "$ROOT_DIR/core/config/runtime.env.example" "$TARGET/.pai/config/runtime.env"
-cp "$ROOT_DIR/core/config/policy.json" "$TARGET/.pai/config/policy.json"
+if [[ "$FORCE_OVERWRITE" == "1" || ! -f "$TARGET/.pai/config/runtime.env" ]]; then
+  cp "$ROOT_DIR/core/config/runtime.env.example" "$TARGET/.pai/config/runtime.env"
+else
+  echo "Preserving existing: $TARGET/.pai/config/runtime.env"
+fi
+
+if [[ "$FORCE_OVERWRITE" == "1" || ! -f "$TARGET/.pai/config/policy.json" ]]; then
+  cp "$ROOT_DIR/core/config/policy.json" "$TARGET/.pai/config/policy.json"
+else
+  echo "Preserving existing: $TARGET/.pai/config/policy.json"
+fi
 
 shell_wrappers=(
   pai_defect_log.sh
@@ -46,6 +58,10 @@ shell_wrappers=(
 )
 
 for f in "${shell_wrappers[@]}"; do
+  if [[ "$FORCE_OVERWRITE" != "1" && -f "$TARGET/scripts/$f" ]]; then
+    echo "Preserving existing wrapper: $TARGET/scripts/$f"
+    continue
+  fi
   cat > "$TARGET/scripts/$f" <<WRAP
 #!/usr/bin/env bash
 set -euo pipefail
