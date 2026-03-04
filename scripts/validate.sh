@@ -10,6 +10,7 @@ required=(
   "$ROOT_DIR/core/scripts/pai_policy_eval.py"
   "$ROOT_DIR/core/scripts/pai_runtime_guard.sh"
   "$ROOT_DIR/core/scripts/pai_subagent_ctl.sh"
+  "$ROOT_DIR/core/scripts/pai_native_artifact_guard.sh"
   "$ROOT_DIR/core/scripts/pai_native_mutation.sh"
   "$ROOT_DIR/core/scripts/pai_native_circuit.sh"
   "$ROOT_DIR/core/scripts/pai_native_replay.sh"

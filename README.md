@@ -78,6 +78,7 @@ portable-pai-core/
   - single-lane mutation lock (`pai_native_mutation.sh`)
   - timeout watchdog + circuit breaker (`pai_native_circuit.sh`)
   - idempotent retry/replay queue (`pai_native_replay.sh`)
+  - native artifact channel guard for `task`, `implementation_plan`, `walkthrough` (`pai_native_artifact_guard.sh`)
 
 ## Quick Start (Any Project)
 
@@ -116,6 +117,11 @@ Important runtime knobs:
 - `PAI_KPI_WINDOW_SIZE=<N>`
 - `PAI_KPI_INCLUDE_RECONCILED=0|1`
 - `PAI_QUALITY_REFRESH_TELEMETRY=0|1`
+- `PAI_NATIVE_ARTIFACT_AUTO_FALLBACK_ENABLED=0|1`
+- `PAI_NATIVE_ARTIFACT_STALL_TIMEOUT_SEC=<sec>`
+- `PAI_NATIVE_ARTIFACT_OBSERVE_ONLY=0|1`
+- `PAI_NATIVE_ARTIFACT_ONE_WAY_SHADOW=1` (enforces only `NATIVE -> SHADOW` auto-switch)
+- `PAI_NATIVE_SHADOW_ENFORCE_BLOCK=1` (blocks native artifact starts while in SHADOW)
 
 ## Adapter Model
 Adapters must comply with [adapters/CONTRACT.md](adapters/CONTRACT.md).

@@ -44,6 +44,7 @@ fi
 shell_wrappers=(
   pai_defect_log.sh
   pai_event_bus.sh
+  pai_native_artifact_guard.sh
   pai_native_circuit.sh
   pai_native_mutation.sh
   pai_native_replay.sh
