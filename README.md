@@ -1,8 +1,8 @@
-# portable-pai-core
+# ide-agnostic-agent-orchestrator
 
 Modular, IDE-agnostic orchestration framework for AI-assisted software delivery.
 
-`portable-pai-core` gives you a portable control plane for:
+This repo (historically scaffolded as `portable-pai-core`) gives you a portable control plane for:
 - runtime safety profiles (`SHADOW` / `NATIVE`)
 - structured policy enforcement for parent/sub-agent execution
 - event telemetry and quality gates
