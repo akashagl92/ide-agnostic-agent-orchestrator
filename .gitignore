@@ -1,0 +1,9 @@
+# Local runtime/state
+.pai/
+*.log
+*.jsonl
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

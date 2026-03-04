@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portable-pai-core/schemas/policy.schema.json",
+  "title": "Portable PAI Policy",
+  "type": "object",
+  "required": ["version", "global", "mode_rules"],
+  "properties": {
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "global": {
+      "type": "object",
+      "required": ["forbidden_targets", "mutating_tokens"],
+      "properties": {
+        "forbidden_targets": {"type": "array", "items": {"type": "string"}},
+        "mutating_tokens": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "mode_rules": {
+      "type": "object",
+      "required": ["single_parent", "proposal_only", "scoped_write"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["allow_spawn", "allow_mutation"],
+        "properties": {
+          "allow_spawn": {"type": "boolean"},
+          "allow_mutation": {"type": "boolean"},
+          "notes": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "stage_overrides": {"type": "object"}
+  },
+  "additionalProperties": true
+}

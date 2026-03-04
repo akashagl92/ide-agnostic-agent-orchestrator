@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "description": "Structured policy rules for parent/child execution safety",
+  "global": {
+    "forbidden_targets": [
+      "task.md",
+      "implementation_plan.md",
+      "walkthrough.md",
+      ".pai/tasks/todo.md",
+      ".pai/plans/active_plan.md",
+      ".pai/walkthrough-final.md"
+    ],
+    "mutating_tokens": [
+      ">",
+      ">>",
+      "sed -i",
+      "rm ",
+      "mv ",
+      "cp ",
+      "touch ",
+      "mkdir ",
+      "tee ",
+      "perl -i",
+      "apply_patch",
+      "git add",
+      "git commit"
+    ]
+  },
+  "mode_rules": {
+    "single_parent": {
+      "allow_spawn": false,
+      "allow_mutation": false,
+      "notes": "Parent-only mode"
+    },
+    "proposal_only": {
+      "allow_spawn": true,
+      "allow_mutation": false,
+      "notes": "Research and analysis only"
+    },
+    "scoped_write": {
+      "allow_spawn": true,
+      "allow_mutation": true,
+      "notes": "Write allowed only within approved scope"
+    }
+  },
+  "stage_overrides": {
+    "pre_deploy": {
+      "allow_scoped_write": false
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "cursor",
+  "version": "0.1.0",
+  "event_handlers": [
+    "on_session_start",
+    "on_pre_tool_use",
+    "on_post_tool_use",
+    "on_subagent_stop",
+    "on_session_end"
+  ],
+  "capabilities": {
+    "hooks": false,
+    "notifications": false,
+    "approvals": false,
+    "panels": false
+  }
+}
