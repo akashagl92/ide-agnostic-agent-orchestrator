@@ -56,6 +56,15 @@ pai_load_runtime() {
   : "${PAI_KPI_WINDOW_SIZE:=20}"
   : "${PAI_KPI_INCLUDE_RECONCILED:=0}"
   : "${PAI_QUALITY_REFRESH_TELEMETRY:=1}"
+  : "${PAI_NATIVE_TIMEOUT_SEC:=20}"
+  : "${PAI_NATIVE_LOCK_TTL_SEC:=120}"
+  : "${PAI_NATIVE_LOCK_WAIT_SEC:=30}"
+  : "${PAI_NATIVE_BREAKER_THRESHOLD:=2}"
+  : "${PAI_NATIVE_BREAKER_COOLDOWN_SEC:=300}"
+  : "${PAI_NATIVE_RETRY_MAX:=2}"
+  : "${PAI_NATIVE_REPLAY_ENABLED:=1}"
+  : "${PAI_NATIVE_AUTO_SHADOW_ON_OPEN:=1}"
+  : "${PAI_NATIVE_QUEUE_ON_FAILURE:=1}"
 
   # Backward-compat mapping: legacy research_only behaves like proposal_only.
   if [[ "$SUBAGENT_MODE" == "research_only" ]]; then

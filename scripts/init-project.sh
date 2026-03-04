@@ -32,6 +32,9 @@ cp "$ROOT_DIR/core/config/policy.json" "$TARGET/.pai/config/policy.json"
 shell_wrappers=(
   pai_defect_log.sh
   pai_event_bus.sh
+  pai_native_circuit.sh
+  pai_native_mutation.sh
+  pai_native_replay.sh
   pai_quality_gate_eval.sh
   pai_reconcile_jobs.sh
   pai_runtime_guard.sh

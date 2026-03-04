@@ -42,6 +42,10 @@ portable-pai-core/
 - **Policy-first execution**: child commands are evaluated before spawn
 - **Event bus**: normalized events emitted to JSONL for audit/automation
 - **Quality gate**: KPI-driven pass/fail with stage awareness
+- **Native artifact safety stack**:
+  - single-lane mutation lock (`pai_native_mutation.sh`)
+  - timeout watchdog + circuit breaker (`pai_native_circuit.sh`)
+  - idempotent retry/replay queue (`pai_native_replay.sh`)
 
 ## Quick Start (Any Project)
 
