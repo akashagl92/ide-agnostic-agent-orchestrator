@@ -15,6 +15,38 @@ Most AI workflows break when moving between IDEs, CLIs, or projects. This framew
 
 So teams can keep one reliable system across different tooling stacks.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Project Workspace"] --> B["Wrapper Commands (scripts/pai_*)"]
+    B --> C["Core Runtime (core/scripts)"]
+    C --> D["Policy Engine (policy.json + pai_policy_eval.py)"]
+    C --> E["Event Bus (.pai/events/events.jsonl)"]
+    C --> F["Telemetry + Quality Gate"]
+    G["IDE/CLI Adapters"] --> E
+    G --> C
+    H["Personas + Project Context (.pai/)"] --> C
+```
+
+## Native Artifact Safety Flow
+
+```mermaid
+flowchart TD
+    R["Native Mutation Request"] --> L["Single Write Lane Lock"]
+    L --> W["Watchdog + Heartbeat"]
+    W --> X{"Operation Timed Out/Failed?"}
+    X -- "No" --> S["Record Success"]
+    S --> C1["Circuit Closed/Reset"]
+    X -- "Yes" --> F1["Record Failure"]
+    F1 --> C2["Circuit Breaker"]
+    C2 --> O{"Breaker Open?"}
+    O -- "Yes" --> SH["Auto Switch to SHADOW (Optional)"]
+    F1 --> Q["Queue Idempotent Replay Item"]
+    Q --> RP["Replay Worker (bounded retries)"]
+    RP --> DQ["Processed or Dead-Letter"]
+```
+
 ## Repository Layout
 
 ```text
