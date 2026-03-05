@@ -28,14 +28,24 @@ done
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 TARGET="$(cd "$PROJECT" && pwd -P)"
 
+safe_replace_path() {
+  local path="$1"
+  # Avoid following symlink targets (which could mutate global/shared files).
+  if [[ -L "$path" ]]; then
+    rm -f "$path"
+  fi
+}
+
 mkdir -p "$TARGET/.pai/config" "$TARGET/scripts"
 if [[ "$FORCE_OVERWRITE" == "1" || ! -f "$TARGET/.pai/config/runtime.env" ]]; then
+  safe_replace_path "$TARGET/.pai/config/runtime.env"
   cp "$ROOT_DIR/core/config/runtime.env.example" "$TARGET/.pai/config/runtime.env"
 else
   echo "Preserving existing: $TARGET/.pai/config/runtime.env"
 fi
 
 if [[ "$FORCE_OVERWRITE" == "1" || ! -f "$TARGET/.pai/config/policy.json" ]]; then
+  safe_replace_path "$TARGET/.pai/config/policy.json"
   cp "$ROOT_DIR/core/config/policy.json" "$TARGET/.pai/config/policy.json"
 else
   echo "Preserving existing: $TARGET/.pai/config/policy.json"
@@ -43,14 +53,18 @@ fi
 
 shell_wrappers=(
   pai_defect_log.sh
+  pai_config_doctor.sh
   pai_event_bus.sh
   pai_native_artifact_guard.sh
+  pai_native_artifact_bridge.sh
   pai_native_circuit.sh
   pai_native_mutation.sh
   pai_native_replay.sh
+  pai_pilot_preflight.sh
   pai_quality_gate_eval.sh
   pai_reconcile_jobs.sh
   pai_runtime_guard.sh
+  pai_shadow_hard_banner.sh
   pai_skill_ctl.sh
   pai_stage_detect.sh
   pai_subagent_ctl.sh
@@ -63,6 +77,7 @@ for f in "${shell_wrappers[@]}"; do
     echo "Preserving existing wrapper: $TARGET/scripts/$f"
     continue
   fi
+  safe_replace_path "$TARGET/scripts/$f"
   cat > "$TARGET/scripts/$f" <<WRAP
 #!/usr/bin/env bash
 set -euo pipefail
@@ -80,6 +95,7 @@ WRAP
   chmod +x "$TARGET/scripts/$f"
 done
 
+safe_replace_path "$TARGET/scripts/pai_policy_eval.py"
 cat > "$TARGET/scripts/pai_policy_eval.py" <<WRAP
 #!/usr/bin/env python3
 import os

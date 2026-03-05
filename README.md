@@ -79,6 +79,10 @@ portable-pai-core/
   - timeout watchdog + circuit breaker (`pai_native_circuit.sh`)
   - idempotent retry/replay queue (`pai_native_replay.sh`)
   - native artifact channel guard for `task`, `implementation_plan`, `walkthrough` (`pai_native_artifact_guard.sh`)
+  - optional native artifact file bridge/observer (`pai_native_artifact_bridge.sh`)
+- **Config precedence (strict)**:
+  - `.pai/config/runtime.env` = policy baseline (authoritative)
+  - `.pai/runtime/profile.env` = transient runtime state only (`PROFILE`, `LOCKED`, `REASON`, `UPDATED_AT`)
 
 ## Quick Start (Any Project)
 
@@ -91,12 +95,13 @@ bash scripts/init-project.sh --project /path/to/your-project
 This will:
 1. create `.pai/config` in the target project
 2. install `runtime.env` + `policy.json`
-3. create compatibility wrappers in target `scripts/`
+3. create compatibility wrappers in target `scripts/` (including `scripts/pai_pilot_preflight.sh`)
 
 Then in target project:
 
 ```bash
 scripts/pai_runtime_guard.sh status
+scripts/pai_shadow_hard_banner.sh
 scripts/pai_telemetry_report.sh
 scripts/pai_quality_gate_eval.sh
 ```
@@ -122,6 +127,12 @@ Important runtime knobs:
 - `PAI_NATIVE_ARTIFACT_OBSERVE_ONLY=0|1`
 - `PAI_NATIVE_ARTIFACT_ONE_WAY_SHADOW=1` (enforces only `NATIVE -> SHADOW` auto-switch)
 - `PAI_NATIVE_SHADOW_ENFORCE_BLOCK=1` (blocks native artifact starts while in SHADOW)
+- `PAI_NATIVE_ARTIFACT_BRIDGE_ENABLED=0|1` (bridge native file events into guard heartbeat/start/end)
+- `PAI_NATIVE_ARTIFACT_SOURCE_ROOT=<path>` (e.g. `$HOME/.gemini/antigravity/brain`)
+- `PAI_NATIVE_ARTIFACT_BRIDGE_POLL_SEC=<sec>`
+- `PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC=<sec>`
+- `PAI_RUNTIME_AUTO_ENSURE_BRIDGE=1` (self-heals stale bridge on runtime/bootstrap status checks)
+- `PAI_SHADOW_ALLOWED_ARTIFACT_PATHS=<csv>` (canonical `.pai/*` write targets when native artifacts are forbidden)
 
 ## Adapter Model
 Adapters must comply with [adapters/CONTRACT.md](adapters/CONTRACT.md).
@@ -139,8 +150,22 @@ In integrated project repos (where wrappers are installed), run:
 
 ```bash
 npm run test:portable
+bash scripts/pai_config_doctor.sh
 bash scripts/pai_pilot_preflight.sh
 ```
+
+Recommended project-level script contract:
+
+```json
+{
+  "scripts": {
+    "test:portable": "bash portable-pai-core/scripts/validate.sh"
+  }
+}
+```
+
+Detailed reliability behavior (timeouts, bridge, fallback, limitations, troubleshooting):
+- [docs/native-artifact-reliability.md](docs/native-artifact-reliability.md)
 
 ## Skills Compatibility
 - Default global skills path: `~/.gemini/antigravity/skills`

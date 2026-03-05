@@ -23,7 +23,31 @@ pai_now_iso() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-# Load canonical runtime config first, then runtime profile overrides.
+_pai_profile_key_allowed() {
+  case "${1:-}" in
+    PROFILE|LOCKED|REASON|UPDATED_AT) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+pai_load_profile_state() {
+  local profile_file="$1"
+  [[ -f "$profile_file" ]] || return 0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -n "$line" ]] || continue
+    [[ "$line" == \#* ]] && continue
+    [[ "$line" == *=* ]] || continue
+    local key="${line%%=*}"
+    local val="${line#*=}"
+    [[ "$key" =~ ^[A-Z0-9_]+$ ]] || continue
+    if _pai_profile_key_allowed "$key"; then
+      printf -v "$key" '%s' "$val"
+    fi
+  done < "$profile_file"
+}
+
+# Load canonical runtime policy/config first, then transient runtime profile state.
 pai_load_runtime() {
   local root="$1"
   local canonical="$root/.pai/config/runtime.env"
@@ -32,10 +56,6 @@ pai_load_runtime() {
   if [[ -f "$canonical" ]]; then
     # shellcheck disable=SC1090
     source "$canonical"
-  fi
-  if [[ -f "$profile" ]]; then
-    # shellcheck disable=SC1090
-    source "$profile"
   fi
 
   : "${PROFILE:=SHADOW}"
@@ -67,9 +87,18 @@ pai_load_runtime() {
   : "${PAI_NATIVE_QUEUE_ON_FAILURE:=1}"
   : "${PAI_NATIVE_ARTIFACT_AUTO_FALLBACK_ENABLED:=1}"
   : "${PAI_NATIVE_ARTIFACT_STALL_TIMEOUT_SEC:=180}"
-  : "${PAI_NATIVE_ARTIFACT_OBSERVE_ONLY:=0}"
+  : "${PAI_NATIVE_ARTIFACT_OBSERVE_ONLY:=1}"
   : "${PAI_NATIVE_ARTIFACT_ONE_WAY_SHADOW:=1}"
   : "${PAI_NATIVE_SHADOW_ENFORCE_BLOCK:=1}"
+  : "${PAI_NATIVE_ARTIFACT_BRIDGE_ENABLED:=0}"
+  : "${PAI_NATIVE_ARTIFACT_SOURCE_ROOT:=}"
+  : "${PAI_NATIVE_ARTIFACT_BRIDGE_POLL_SEC:=5}"
+  : "${PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC:=30}"
+  : "${PAI_RUNTIME_AUTO_ENSURE_BRIDGE:=1}"
+  : "${PAI_SHADOW_ALLOWED_ARTIFACT_PATHS:=.pai/tasks/todo.md,.pai/plans/active_plan.md,.pai/walkthrough-final.md}"
+
+  # Apply only transient profile keys.
+  pai_load_profile_state "$profile"
 
   # Backward-compat mapping: legacy research_only behaves like proposal_only.
   if [[ "$SUBAGENT_MODE" == "research_only" ]]; then

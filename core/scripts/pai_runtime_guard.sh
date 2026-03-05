@@ -8,6 +8,7 @@ source "$script_dir/pai_core_lib.sh"
 ROOT_DIR="$(pai_resolve_root)"
 RUNTIME_DIR="$ROOT_DIR/.pai/runtime"
 PROFILE_FILE="$RUNTIME_DIR/profile.env"
+RUNTIME_CONFIG_FILE="$ROOT_DIR/.pai/config/runtime.env"
 EVENT_LOG="$RUNTIME_DIR/events.log"
 
 mkdir -p "$RUNTIME_DIR"
@@ -22,14 +23,15 @@ set_defaults() {
   : "${LOCKED:=1}"
   : "${REASON:=bootstrap_default_shadow}"
   : "${UPDATED_AT:=$(now_iso)}"
+}
 
-  : "${SUBAGENT_ENABLED:=1}"
-  : "${SUBAGENT_MODE:=proposal_only}"
-  : "${SUBAGENT_MAX_CONCURRENCY:=2}"
-  : "${SUBAGENT_TIMEOUT_SEC:=180}"
-  : "${SUBAGENT_PARENT_ONLY_WRITES:=1}"
-  : "${SUBAGENT_NATIVE_WRITES:=0}"
-  : "${CAPABILITY_SPAWN_SUBAGENT:=1}"
+bridge_auto_ensure() {
+  pai_load_runtime "$ROOT_DIR"
+  [[ "${PAI_RUNTIME_AUTO_ENSURE_BRIDGE:-1}" == "1" ]] || return 0
+  [[ "${PAI_NATIVE_ARTIFACT_BRIDGE_ENABLED:-0}" == "1" ]] || return 0
+  local bridge="$ROOT_DIR/scripts/pai_native_artifact_bridge.sh"
+  [[ -x "$bridge" ]] || return 0
+  "$bridge" ensure >/dev/null 2>&1 || true
 }
 
 write_state() {
@@ -40,24 +42,26 @@ PROFILE=$PROFILE
 LOCKED=$LOCKED
 REASON=$reason_override
 UPDATED_AT=$UPDATED_AT
-SUBAGENT_ENABLED=$SUBAGENT_ENABLED
-SUBAGENT_MODE=$SUBAGENT_MODE
-SUBAGENT_MAX_CONCURRENCY=$SUBAGENT_MAX_CONCURRENCY
-SUBAGENT_TIMEOUT_SEC=$SUBAGENT_TIMEOUT_SEC
-SUBAGENT_PARENT_ONLY_WRITES=$SUBAGENT_PARENT_ONLY_WRITES
-SUBAGENT_NATIVE_WRITES=$SUBAGENT_NATIVE_WRITES
-CAPABILITY_SPAWN_SUBAGENT=$CAPABILITY_SPAWN_SUBAGENT
 __PROFILE_EOF__
   REASON="$reason_override"
-  echo "$UPDATED_AT profile=$PROFILE locked=$LOCKED reason=$REASON subagent_enabled=$SUBAGENT_ENABLED subagent_mode=$SUBAGENT_MODE spawn_cap=$CAPABILITY_SPAWN_SUBAGENT" >> "$EVENT_LOG"
+  echo "$UPDATED_AT profile=$PROFILE locked=$LOCKED reason=$REASON" >> "$EVENT_LOG"
 }
 
 read_state() {
-  if [[ -f "$PROFILE_FILE" ]]; then
-    # shellcheck disable=SC1090
-    source "$PROFILE_FILE"
-  fi
   set_defaults
+}
+
+set_runtime_kv() {
+  local key="$1"
+  local value="$2"
+  mkdir -p "$(dirname "$RUNTIME_CONFIG_FILE")"
+  touch "$RUNTIME_CONFIG_FILE"
+  if grep -q "^${key}=" "$RUNTIME_CONFIG_FILE" 2>/dev/null; then
+    awk -v k="$key" -v v="$value" -F= 'BEGIN{OFS="="} $1==k{$0=k"="v}1' "$RUNTIME_CONFIG_FILE" > "$RUNTIME_CONFIG_FILE.tmp"
+    mv "$RUNTIME_CONFIG_FILE.tmp" "$RUNTIME_CONFIG_FILE"
+  else
+    printf '\n%s=%s\n' "$key" "$value" >> "$RUNTIME_CONFIG_FILE"
+  fi
 }
 
 validate_mode() {
@@ -78,9 +82,20 @@ reason="${2:-manual}"
 
 case "$cmd" in
   status)
+    bridge_auto_ensure
     read_state
+    bridge_status="$("$ROOT_DIR/scripts/pai_native_artifact_bridge.sh" status 2>/dev/null || true)"
+    bridge_running="$(printf '%s\n' "$bridge_status" | awk -F= '/^RUNNING=/{print $2}' | tail -n1)"
+    bridge_pid="$(printf '%s\n' "$bridge_status" | awk -F= '/^PID=/{print $2}' | tail -n1)"
+    bridge_pid_stale="$(printf '%s\n' "$bridge_status" | awk -F= '/^PID_STALE=/{print $2}' | tail -n1)"
+    native_artifacts_allowed="1"
+    if [[ "$PROFILE" == "SHADOW" || "$LOCKED" == "1" ]]; then
+      native_artifacts_allowed="0"
+    fi
     echo "ROOT_DIR=$ROOT_DIR"
     echo "PROFILE_FILE=$PROFILE_FILE"
+    echo "RUNTIME_CONFIG_FILE=$RUNTIME_CONFIG_FILE"
+    echo "STATE_MODEL=runtime.env policy baseline + profile.env transient state"
     echo "PROFILE=$PROFILE"
     echo "LOCKED=$LOCKED"
     echo "REASON=$REASON"
@@ -92,6 +107,26 @@ case "$cmd" in
     echo "SUBAGENT_PARENT_ONLY_WRITES=$SUBAGENT_PARENT_ONLY_WRITES"
     echo "SUBAGENT_NATIVE_WRITES=$SUBAGENT_NATIVE_WRITES"
     echo "CAPABILITY_SPAWN_SUBAGENT=$CAPABILITY_SPAWN_SUBAGENT"
+    echo "PAI_NATIVE_ARTIFACT_BRIDGE_ENABLED=$PAI_NATIVE_ARTIFACT_BRIDGE_ENABLED"
+    echo "PAI_NATIVE_ARTIFACT_SOURCE_ROOT=${PAI_NATIVE_ARTIFACT_SOURCE_ROOT:-$HOME/.gemini/antigravity/brain}"
+    echo "PAI_NATIVE_ARTIFACT_BRIDGE_POLL_SEC=$PAI_NATIVE_ARTIFACT_BRIDGE_POLL_SEC"
+    echo "PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC=$PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC"
+    echo "PAI_RUNTIME_AUTO_ENSURE_BRIDGE=$PAI_RUNTIME_AUTO_ENSURE_BRIDGE"
+    echo "PAI_SHADOW_ALLOWED_ARTIFACT_PATHS=$PAI_SHADOW_ALLOWED_ARTIFACT_PATHS"
+    echo "NATIVE_ARTIFACTS_ALLOWED=$native_artifacts_allowed"
+    if [[ "$native_artifacts_allowed" == "0" ]]; then
+      echo "NATIVE_ARTIFACTS_FORBIDDEN_REASON=shadow_or_locked_profile"
+      echo "NATIVE_ARTIFACTS_BANNED_TOOLS=task_boundary,task.md,implementation_plan.md,walkthrough.md"
+    fi
+    if [[ -n "$bridge_running" ]]; then
+      echo "BRIDGE_DAEMON_RUNNING=$bridge_running"
+    fi
+    if [[ -n "$bridge_pid" ]]; then
+      echo "BRIDGE_DAEMON_PID=$bridge_pid"
+    fi
+    if [[ -n "$bridge_pid_stale" ]]; then
+      echo "BRIDGE_DAEMON_PID_STALE=$bridge_pid_stale"
+    fi
     ;;
   native-on)
     read_state
@@ -121,69 +156,50 @@ case "$cmd" in
     read_state
     PROFILE="SHADOW"
     LOCKED="1"
-    SUBAGENT_ENABLED="1"
-    SUBAGENT_MODE="proposal_only"
-    SUBAGENT_MAX_CONCURRENCY="2"
-    SUBAGENT_TIMEOUT_SEC="180"
-    SUBAGENT_PARENT_ONLY_WRITES="1"
-    SUBAGENT_NATIVE_WRITES="0"
-    CAPABILITY_SPAWN_SUBAGENT="1"
     write_state "$reason"
     echo "Reset profile to SHADOW and locked"
     ;;
   subagent-on)
-    read_state
-    SUBAGENT_ENABLED="1"
-    write_state "$reason"
-    echo "Subagent PoC enabled"
+    set_runtime_kv "SUBAGENT_ENABLED" "1"
+    echo "Updated runtime baseline: SUBAGENT_ENABLED=1"
     ;;
   subagent-off)
-    read_state
-    SUBAGENT_ENABLED="0"
-    write_state "$reason"
-    echo "Subagent PoC disabled"
+    set_runtime_kv "SUBAGENT_ENABLED" "0"
+    echo "Updated runtime baseline: SUBAGENT_ENABLED=0"
     ;;
   subagent-mode)
-    read_state
     mode="${2:-proposal_only}"
     [[ "$mode" == "research_only" ]] && mode="proposal_only"
     validate_mode "$mode"
-    SUBAGENT_MODE="$mode"
-    write_state "${3:-manual_mode_change}"
-    echo "Subagent mode set to $SUBAGENT_MODE"
+    set_runtime_kv "SUBAGENT_MODE" "$mode"
+    echo "Updated runtime baseline: SUBAGENT_MODE=$mode"
     ;;
   subagent-concurrency)
-    read_state
     value="${2:-2}"
     if ! [[ "$value" =~ ^[0-9]+$ ]]; then
       echo "Concurrency must be an integer"
       exit 1
     fi
-    SUBAGENT_MAX_CONCURRENCY="$value"
-    write_state "${3:-manual_concurrency_change}"
-    echo "Subagent concurrency set to $SUBAGENT_MAX_CONCURRENCY"
+    set_runtime_kv "SUBAGENT_MAX_CONCURRENCY" "$value"
+    echo "Updated runtime baseline: SUBAGENT_MAX_CONCURRENCY=$value"
     ;;
   subagent-timeout)
-    read_state
     value="${2:-180}"
     if ! [[ "$value" =~ ^[0-9]+$ ]]; then
       echo "Timeout must be an integer"
       exit 1
     fi
-    SUBAGENT_TIMEOUT_SEC="$value"
-    write_state "${3:-manual_timeout_change}"
-    echo "Subagent timeout set to $SUBAGENT_TIMEOUT_SEC"
+    set_runtime_kv "SUBAGENT_TIMEOUT_SEC" "$value"
+    echo "Updated runtime baseline: SUBAGENT_TIMEOUT_SEC=$value"
     ;;
   subagent-capability)
-    read_state
     value="${2:-0}"
     if [[ "$value" != "0" && "$value" != "1" ]]; then
       echo "Capability must be 0 or 1"
       exit 1
     fi
-    CAPABILITY_SPAWN_SUBAGENT="$value"
-    write_state "${3:-manual_capability_change}"
-    echo "Subagent spawn capability set to $CAPABILITY_SPAWN_SUBAGENT"
+    set_runtime_kv "CAPABILITY_SPAWN_SUBAGENT" "$value"
+    echo "Updated runtime baseline: CAPABILITY_SPAWN_SUBAGENT=$value"
     ;;
   *)
     echo "Usage:"
