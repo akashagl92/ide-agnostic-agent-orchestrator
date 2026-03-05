@@ -112,6 +112,18 @@ If target project already has `.pai/config` or `scripts/pai_*` wrappers and you 
 bash scripts/init-project.sh --project /path/to/your-project --force-overwrite
 ```
 
+`--force-overwrite` is symlink-safe: wrapper replacement does not follow symlink targets.
+
+## Upgrade Existing Install
+
+From the target project root (with local `portable-pai-core/` vendored):
+
+```bash
+bash portable-pai-core/scripts/init-project.sh --project "$(pwd)" --force-overwrite
+bash scripts/pai_config_doctor.sh
+bash scripts/pai_pilot_preflight.sh
+```
+
 ## Configuration
 Primary config lives in target project:
 - `.pai/config/runtime.env`
@@ -172,30 +184,22 @@ Detailed reliability behavior (timeouts, bridge, fallback, limitations, troubles
 - You can override via: `PAI_GLOBAL_SKILLS_DIR=/custom/skills/path`
 - Alternate fallback paths are checked for portability (`~/.codex/skills`, `~/.config/pai/skills`)
 
-## Deploy as Public Repo
+## Fork/Clone Readiness
 
 ```bash
-cd portable-pai-core
-git init
-git add .
-git commit -m "Initial portable-pai-core release"
-git branch -M main
-git remote add origin git@github.com:<your-org>/portable-pai-core.git
-git push -u origin main
+bash scripts/validate.sh
 ```
 
-If using GitHub CLI:
+For consumer repos:
 
 ```bash
-cd portable-pai-core
-gh repo create <your-org>/portable-pai-core --public --source=. --remote=origin --push
+bash scripts/init-project.sh --project /path/to/your-project
 ```
 
-## Rollout Strategy
-1. Pilot in one project (done: Portfolio-Fetch)
-2. Extend to `moltbot`
-3. Extend to `agentic-memory-scaling`
-4. Global rollout
+Recommended adoption order:
+1. Canary in one project.
+2. Expand to a small project set.
+3. Promote to org-wide default after validation passes.
 
 ## License
 MIT
