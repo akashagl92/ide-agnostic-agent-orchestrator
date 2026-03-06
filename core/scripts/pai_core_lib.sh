@@ -96,6 +96,8 @@ pai_load_runtime() {
   : "${PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC:=30}"
   : "${PAI_RUNTIME_AUTO_ENSURE_BRIDGE:=1}"
   : "${PAI_SHADOW_ALLOWED_ARTIFACT_PATHS:=.pai/tasks/todo.md,.pai/plans/active_plan.md,.pai/walkthrough-final.md}"
+  : "${PAI_DOCS_QUALITY_ENABLED:=1}"
+  : "${PAI_DOCS_QUALITY_SCOPE:=all}"
 
   # Apply only transient profile keys.
   pai_load_profile_state "$profile"

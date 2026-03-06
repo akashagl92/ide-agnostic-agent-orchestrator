@@ -80,6 +80,14 @@ emit_event() {
   fi
 }
 
+fail_gate() {
+  local reason="$1"
+  local error_count="${2:-1}"
+  echo "QUALITY_GATE_STATUS=FAIL"
+  emit_event "quality_gate_failed" "stage=$stage" "errors=$error_count" "reason=$reason"
+  exit 1
+}
+
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required for quality gate evaluation" >&2
   exit 2
@@ -90,6 +98,15 @@ if [[ "$refresh_telemetry" == "1" ]]; then
   "$ROOT_DIR/scripts/pai_telemetry_report.sh" >/dev/null
 else
   [[ -f "$REPORT_JSON" ]] || "$ROOT_DIR/scripts/pai_telemetry_report.sh" >/dev/null
+fi
+
+docs_quality_enabled="${PAI_DOCS_QUALITY_ENABLED:-1}"
+if [[ "$docs_quality_enabled" == "1" ]]; then
+  docs_scope="${PAI_DOCS_QUALITY_SCOPE:-all}"
+  if ! "$ROOT_DIR/scripts/pai_docs_quality_gate.sh" "$docs_scope"; then
+    echo "QUALITY_FAIL docs_quality_check scope=$docs_scope"
+    fail_gate "docs_quality_check_failed"
+  fi
 fi
 
 spawn_success="$(jq -r '.kpi.spawn_success_rate_pct' "$REPORT_JSON")"
@@ -121,9 +138,7 @@ if ! awk -v a="$sigma_level" -v b="$sigma_target" 'BEGIN{exit !(a+0 >= b+0)}'; t
 fi
 
 if [[ "$errors" -gt 0 ]]; then
-  echo "QUALITY_GATE_STATUS=FAIL"
-  emit_event "quality_gate_failed" "stage=$stage" "errors=$errors"
-  exit 1
+  fail_gate "kpi_threshold_failure" "$errors"
 fi
 
 echo "QUALITY_GATE_STATUS=PASS"

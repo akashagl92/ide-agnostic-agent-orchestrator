@@ -54,7 +54,9 @@ fi
 shell_wrappers=(
   pai_defect_log.sh
   pai_config_doctor.sh
+  pai_docs_quality_gate.sh
   pai_event_bus.sh
+  pai_install_precommit_hook.sh
   pai_native_artifact_guard.sh
   pai_native_artifact_bridge.sh
   pai_native_circuit.sh

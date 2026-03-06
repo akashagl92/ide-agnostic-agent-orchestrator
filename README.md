@@ -24,9 +24,11 @@ flowchart LR
     C --> D["Policy Engine (policy.json + pai_policy_eval.py)"]
     C --> E["Event Bus (.pai/events/events.jsonl)"]
     C --> F["Telemetry + Quality Gate"]
+    C --> Q["Docs/Report Quality Gate"]
     G["IDE/CLI Adapters"] --> E
     G --> C
     H["Personas + Project Context (.pai/)"] --> C
+    Q --> F
 ```
 
 ## Native Artifact Safety Flow
@@ -45,6 +47,21 @@ flowchart TD
     F1 --> Q["Queue Idempotent Replay Item"]
     Q --> RP["Replay Worker (bounded retries)"]
     RP --> DQ["Processed or Dead-Letter"]
+```
+
+## Quality Gate Flow
+
+```mermaid
+flowchart TD
+    A["Change Set (.md + reports + code)"] --> B["Docs Quality Check (file:/// + absolute local path scan)"]
+    B --> C{"Docs Check Pass?"}
+    C -- "No" --> F1["Quality Gate Fail"]
+    C -- "Yes" --> D["Telemetry KPI Evaluation"]
+    D --> E{"KPI Thresholds Pass?"}
+    E -- "No" --> F1
+    E -- "Yes" --> G["Quality Gate Pass"]
+    H["Pre-Commit Hook (optional)"] --> I["Run Gate with staged scope"]
+    I --> B
 ```
 
 ## Repository Layout
@@ -145,6 +162,8 @@ Important runtime knobs:
 - `PAI_NATIVE_ARTIFACT_BRIDGE_IDLE_END_SEC=<sec>`
 - `PAI_RUNTIME_AUTO_ENSURE_BRIDGE=1` (self-heals stale bridge on runtime/bootstrap status checks)
 - `PAI_SHADOW_ALLOWED_ARTIFACT_PATHS=<csv>` (canonical `.pai/*` write targets when native artifacts are forbidden)
+- `PAI_DOCS_QUALITY_ENABLED=0|1` (check report/markdown remote-render safety in quality gate)
+- `PAI_DOCS_QUALITY_SCOPE=all|staged` (`staged` is recommended for pre-commit)
 
 ## Adapter Model
 Adapters must comply with [adapters/CONTRACT.md](adapters/CONTRACT.md).
@@ -164,6 +183,18 @@ In integrated project repos (where wrappers are installed), run:
 npm run test:portable
 bash scripts/pai_config_doctor.sh
 bash scripts/pai_pilot_preflight.sh
+```
+
+For pre-commit usage (staged files only):
+
+```bash
+PAI_DOCS_QUALITY_SCOPE=staged bash scripts/pai_quality_gate_eval.sh
+```
+
+Install a git pre-commit hook that enforces this automatically:
+
+```bash
+bash scripts/pai_install_precommit_hook.sh
 ```
 
 Recommended project-level script contract:

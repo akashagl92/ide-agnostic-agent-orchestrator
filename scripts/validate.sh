@@ -8,6 +8,8 @@ echo "== Validate portable-pai-core =="
 required=(
   "$ROOT_DIR/core/scripts/pai_core_lib.sh"
   "$ROOT_DIR/core/scripts/pai_config_doctor.sh"
+  "$ROOT_DIR/core/scripts/pai_docs_quality_gate.sh"
+  "$ROOT_DIR/core/scripts/pai_install_precommit_hook.sh"
   "$ROOT_DIR/core/scripts/pai_policy_eval.py"
   "$ROOT_DIR/core/scripts/pai_runtime_guard.sh"
   "$ROOT_DIR/core/scripts/pai_shadow_hard_banner.sh"
@@ -36,6 +38,7 @@ mkdir -p "$TARGET"
 bash "$ROOT_DIR/scripts/init-project.sh" --project "$TARGET" >/dev/null
 
 "$TARGET/scripts/pai_runtime_guard.sh" status >/dev/null
+"$TARGET/scripts/pai_docs_quality_gate.sh" all >/dev/null
 "$TARGET/scripts/pai_policy_eval.py" --policy "$TARGET/.pai/config/policy.json" --mode proposal_only --actor child --command "echo ok" --root "$TARGET" >/dev/null
 
 if "$TARGET/scripts/pai_policy_eval.py" --policy "$TARGET/.pai/config/policy.json" --mode proposal_only --actor child --command "touch /tmp/pai_validate_block" --root "$TARGET" >/dev/null 2>&1; then
@@ -60,6 +63,14 @@ if ! grep -q 'do_not_touch' "$SENTINEL_DIR/runtime_guard.sh"; then
   echo "Symlink safety check failed: external target mutated"
   rm -rf "$TMP_DIR"
   exit 5
+fi
+
+git -C "$TARGET" init -q
+"$TARGET/scripts/pai_install_precommit_hook.sh" >/dev/null
+if [[ ! -x "$TARGET/.git/hooks/pre-commit" ]]; then
+  echo "Pre-commit hook install check failed"
+  rm -rf "$TMP_DIR"
+  exit 6
 fi
 
 echo "Bootstrap + policy checks: PASS"
